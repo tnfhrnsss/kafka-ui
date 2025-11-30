@@ -31,10 +31,9 @@ export const TopicTitleCell: React.FC<CellContext<Topic, unknown>> = ({
       onClick={handleClick}
     >
       {internal && (
-        <>
-          <Tag color="gray">IN</Tag>
-          &nbsp;
-        </>
+        <Tag color="gray" style={{ marginRight: '0.75em' }}>
+          IN
+        </Tag>
       )}
       {name}
     </NavLink>

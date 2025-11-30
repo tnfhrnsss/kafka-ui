@@ -1,5 +1,8 @@
 package io.kafbat.ui.model;
 
+import static org.apache.kafka.common.config.TopicConfig.CLEANUP_POLICY_CONFIG;
+
+import io.kafbat.ui.service.metrics.scrape.ScrapedClusterState;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +14,7 @@ import lombok.Data;
 import org.apache.kafka.clients.admin.ConfigEntry;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.config.TopicConfig;
 
 @Data
 @Builder(toBuilder = true)
@@ -37,6 +41,16 @@ public class InternalTopic {
   // from log dir data
   private final long segmentSize;
   private final long segmentCount;
+
+
+  public InternalTopic withMetrics(Metrics metrics) {
+    var builder = toBuilder();
+    if (metrics != null) {
+      builder.bytesInPerSec(metrics.getIoRates().topicBytesInPerSec().get(this.name));
+      builder.bytesOutPerSec(metrics.getIoRates().topicBytesOutPerSec().get(this.name));
+    }
+    return builder.build();
+  }
 
   public static InternalTopic from(TopicDescription topicDescription,
                                    List<ConfigEntry> configs,
@@ -113,15 +127,17 @@ public class InternalTopic {
           topic.segmentSize(stats.getSegmentSize());
         });
 
-    topic.bytesInPerSec(metrics.getIoRates().topicBytesInPerSec().get(topicDescription.name()));
-    topic.bytesOutPerSec(metrics.getIoRates().topicBytesOutPerSec().get(topicDescription.name()));
+    if (metrics != null) {
+      topic.bytesInPerSec(metrics.getIoRates().topicBytesInPerSec().get(topicDescription.name()));
+      topic.bytesOutPerSec(metrics.getIoRates().topicBytesOutPerSec().get(topicDescription.name()));
+    }
 
     topic.topicConfigs(
         configs.stream().map(InternalTopicConfig::from).collect(Collectors.toList()));
 
     topic.cleanUpPolicy(
         configs.stream()
-            .filter(config -> config.name().equals("cleanup.policy"))
+            .filter(config -> config.name().equals(CLEANUP_POLICY_CONFIG))
             .findFirst()
             .map(ConfigEntry::value)
             .map(CleanupPolicy::fromString)
@@ -131,4 +147,43 @@ public class InternalTopic {
     return topic.build();
   }
 
+  public static InternalTopic from(ScrapedClusterState.TopicState topicState,
+                                   @Nullable String internalTopicPrefix) {
+    Map<TopicPartition, InternalPartitionsOffsets.Offsets> offsets =
+        topicState.description().partitions().stream().map(p -> Map.entry(
+            new TopicPartition(topicState.name(), p.partition()),
+            new InternalPartitionsOffsets.Offsets(
+                topicState.startOffsets().get(p.partition()),
+                topicState.endOffsets().get(p.partition())
+            )
+        )
+    ).filter(e ->
+            e.getValue().getEarliest() != null && e.getValue().getLatest() != null
+    ).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+    return from(
+        topicState.description(),
+        topicState.configs(),
+        new InternalPartitionsOffsets(offsets),
+        null,
+        topicState.segmentStats(),
+        topicState.partitionsSegmentStats(),
+        internalTopicPrefix
+    );
+  }
+
+  public @Nullable Long getMessagesCount() {
+    Long result = null;
+    if (cleanUpPolicy.equals(CleanupPolicy.DELETE)) {
+      result = 0L;
+      if (partitions != null && !partitions.isEmpty()) {
+        for (InternalPartition partition : partitions.values()) {
+          if (partition.getOffsetMin() != null && partition.getOffsetMax() != null) {
+            result += (partition.getOffsetMax() - partition.getOffsetMin());
+          }
+        }
+      }
+    }
+    return result;
+  }
 }

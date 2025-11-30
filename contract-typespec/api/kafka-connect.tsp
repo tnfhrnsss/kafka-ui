@@ -47,6 +47,7 @@ interface ConnectorsApi {
     @query search?: string,
     @query orderBy?: ConnectorColumnsToSort,
     @query sortOrder?: SortOrder,
+    @query fts?: boolean
   ): FullConnectorInfo[];
 }
 
@@ -216,6 +217,7 @@ enum ConnectorState {
 model ConnectorStatus {
   state: ConnectorState;
   workerId?: string;
+  trace?: string;
 }
 
 model Connector {
@@ -224,6 +226,7 @@ model Connector {
   type: ConnectorType;
   status: ConnectorStatus;
   connect: string;
+  topics?: string[];
 }
 
 enum ConnectorAction {

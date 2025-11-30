@@ -23,6 +23,7 @@ import io.kafbat.ui.service.KafkaConnectService;
 import io.kafbat.ui.service.mcp.McpTool;
 import java.util.Comparator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import javax.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -66,8 +67,12 @@ public class KafkaConnectController extends AbstractController implements KafkaC
         .build();
 
     return validateAccess(context)
-        .thenReturn(ResponseEntity.ok(kafkaConnectService.getConnectorNames(getCluster(clusterName), connectName)))
-        .doOnEach(sig -> audit(context, sig));
+        .thenReturn(
+            ResponseEntity.ok(
+              kafkaConnectService.getConnectors(getCluster(clusterName), connectName)
+                  .flatMapMany(m -> Flux.fromIterable(m.keySet()))
+            )
+        ).doOnEach(sig -> audit(context, sig));
   }
 
   @Override
@@ -129,6 +134,7 @@ public class KafkaConnectController extends AbstractController implements KafkaC
       String search,
       ConnectorColumnsToSortDTO orderBy,
       SortOrderDTO sortOrder,
+      Boolean fts,
       ServerWebExchange exchange
   ) {
     var context = AccessContext.builder()
@@ -136,15 +142,18 @@ public class KafkaConnectController extends AbstractController implements KafkaC
         .operationName("getAllConnectors")
         .build();
 
+    var maybeComparator = Optional.ofNullable(orderBy).map(this::getConnectorsComparator);
+
     var comparator = sortOrder == null || sortOrder.equals(SortOrderDTO.ASC)
-        ? getConnectorsComparator(orderBy)
-        : getConnectorsComparator(orderBy).reversed();
+        ? maybeComparator
+        : maybeComparator.map(Comparator::reversed);
 
-    Flux<FullConnectorInfoDTO> job = kafkaConnectService.getAllConnectors(getCluster(clusterName), search)
-        .filterWhen(dto -> accessControlService.isConnectAccessible(dto.getConnect(), clusterName))
-        .sort(comparator);
+    Flux<FullConnectorInfoDTO> connectors = kafkaConnectService.getAllConnectors(getCluster(clusterName), search, fts)
+        .filterWhen(dto -> accessControlService.isConnectAccessible(dto.getConnect(), clusterName));
 
-    return Mono.just(ResponseEntity.ok(job))
+    Flux<FullConnectorInfoDTO> sorted = comparator.map(connectors::sort).orElse(connectors);
+
+    return Mono.just(ResponseEntity.ok(sorted))
         .doOnEach(sig -> audit(context, sig));
   }
 
@@ -275,14 +284,24 @@ public class KafkaConnectController extends AbstractController implements KafkaC
   }
 
   private Comparator<FullConnectorInfoDTO> getConnectorsComparator(ConnectorColumnsToSortDTO orderBy) {
-    var defaultComparator = Comparator.comparing(FullConnectorInfoDTO::getName);
-    if (orderBy == null) {
-      return defaultComparator;
-    }
+    var defaultComparator = Comparator.comparing(
+        FullConnectorInfoDTO::getName,
+        Comparator.nullsFirst(Comparator.naturalOrder())
+    );
+
     return switch (orderBy) {
-      case CONNECT -> Comparator.comparing(FullConnectorInfoDTO::getConnect);
-      case TYPE -> Comparator.comparing(FullConnectorInfoDTO::getType);
-      case STATUS -> Comparator.comparing(fullConnectorInfoDTO -> fullConnectorInfoDTO.getStatus().getState());
+      case CONNECT -> Comparator.comparing(
+          FullConnectorInfoDTO::getConnect,
+          Comparator.nullsFirst(Comparator.naturalOrder())
+      );
+      case TYPE -> Comparator.comparing(
+          FullConnectorInfoDTO::getType,
+          Comparator.nullsFirst(Comparator.naturalOrder())
+      );
+      case STATUS -> Comparator.comparing(
+          fullConnectorInfoDTO -> fullConnectorInfoDTO.getStatus().getState(),
+          Comparator.nullsFirst(Comparator.naturalOrder())
+      );
       default -> defaultComparator;
     };
   }

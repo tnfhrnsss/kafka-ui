@@ -138,8 +138,6 @@ model ApplicationConfig {
       cache?: {
         enabled?: boolean;
         @format("duration")
-        connectCacheExpiry?: string;
-        @format("duration")
         connectClusterCacheExpiry?: string;
       };
       clusters?: {
@@ -148,7 +146,7 @@ model ApplicationConfig {
         ssl?: {
           truststoreLocation?: string;
           truststorePassword?: string;
-          verifySsl?: boolean = true;
+          verify?: boolean = true;
         };
         schemaRegistry?: string;
         schemaRegistryAuth?: {

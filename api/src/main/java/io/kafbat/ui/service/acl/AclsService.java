@@ -15,12 +15,14 @@ import static org.apache.kafka.common.resource.ResourceType.TOPIC;
 import static org.apache.kafka.common.resource.ResourceType.TRANSACTIONAL_ID;
 
 import com.google.common.collect.Sets;
+import io.kafbat.ui.config.ClustersProperties;
 import io.kafbat.ui.model.CreateConsumerAclDTO;
 import io.kafbat.ui.model.CreateProducerAclDTO;
 import io.kafbat.ui.model.CreateStreamAppAclDTO;
 import io.kafbat.ui.model.KafkaCluster;
 import io.kafbat.ui.service.AdminClientService;
 import io.kafbat.ui.service.ReactiveAdminClient;
+import io.kafbat.ui.service.index.AclBindingNgramFilter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -48,6 +50,7 @@ import reactor.core.publisher.Mono;
 public class AclsService {
 
   private final AdminClientService adminClientService;
+  private final ClustersProperties clustersProperties;
 
   public Mono<Void> createAcl(KafkaCluster cluster, AclBinding aclBinding) {
     return adminClientService.get(cluster)
@@ -68,12 +71,19 @@ public class AclsService {
         .doOnSuccess(v -> log.info("ACL DELETED: [{}]", aclString));
   }
 
-  public Flux<AclBinding> listAcls(KafkaCluster cluster, ResourcePatternFilter filter, String principalSearch) {
+  public Flux<AclBinding> listAcls(KafkaCluster cluster, ResourcePatternFilter filter, String principalSearch,
+                                   Boolean fts) {
     return adminClientService.get(cluster)
-        .flatMap(c -> c.listAcls(filter))
-        .flatMapIterable(acls -> acls)
-        .filter(acl -> principalSearch == null || acl.entry().principal().contains(principalSearch))
-        .sort(Comparator.comparing(AclBinding::toString));  //sorting to keep stable order on different calls
+      .flatMap(c -> c.listAcls(filter))
+      .map(lst -> filter(new ArrayList<>(lst), principalSearch, fts))
+      .flatMapMany(Flux::fromIterable)
+      .sort(Comparator.comparing(AclBinding::toString));  //sorting to keep stable order on different calls
+  }
+
+  private List<AclBinding> filter(List<AclBinding> acls, String principalSearch, Boolean fts) {
+    boolean useFts = clustersProperties.getFts().use(fts);
+    AclBindingNgramFilter filter = new AclBindingNgramFilter(acls, useFts, clustersProperties.getFts().getAcl());
+    return filter.find(principalSearch);
   }
 
   public Mono<String> getAclAsCsvString(KafkaCluster cluster) {

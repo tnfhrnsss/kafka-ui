@@ -68,6 +68,7 @@ const Colors = {
   yellow: {
     '10': '#FFEECC',
     '20': '#FFDD57',
+    '30': '#FFD439',
   },
   blue: {
     '10': '#e3f2fd',
@@ -270,7 +271,7 @@ const baseTheme = {
     infoIcon: Colors.neutral[30],
     closeCircleIcon: Colors.neutral[30],
     deleteIcon: Colors.red[20],
-    warningIcon: Colors.yellow[20],
+    warningIcon: Colors.yellow[30],
     warningRedIcon: {
       rectFill: Colors.red[10],
       pathFill: Colors.red[50],
@@ -306,6 +307,10 @@ const baseTheme = {
     menuIcon: Colors.brand[70],
     filterIcon: {
       normal: Colors.brand[70],
+    },
+    ftsIcon: {
+      normal: Colors.neutral[30],
+      active: Colors.brand[70],
     },
   },
   textArea: {
@@ -1539,6 +1544,10 @@ export const darkTheme: ThemeType = {
       normal: Colors.neutral[5],
     },
     menuIcon: Colors.brand[0],
+    ftsIcon: {
+      normal: Colors.neutral[50],
+      active: Colors.brand[10],
+    },
   },
   textArea: {
     ...baseTheme.textArea,

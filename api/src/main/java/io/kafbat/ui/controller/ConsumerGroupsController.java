@@ -128,6 +128,7 @@ public class ConsumerGroupsController extends AbstractController implements Cons
       String search,
       ConsumerGroupOrderingDTO orderBy,
       SortOrderDTO sortOrderDto,
+      Boolean fts,
       ServerWebExchange exchange) {
 
     var context = AccessContext.builder()
@@ -142,6 +143,7 @@ public class ConsumerGroupsController extends AbstractController implements Cons
                 Optional.ofNullable(page).filter(i -> i > 0).orElse(1),
                 Optional.ofNullable(perPage).filter(i -> i > 0).orElse(defaultConsumerGroupsPageSize),
                 search,
+                fts,
                 Optional.ofNullable(orderBy).orElse(ConsumerGroupOrderingDTO.NAME),
                 Optional.ofNullable(sortOrderDto).orElse(SortOrderDTO.ASC)
             )

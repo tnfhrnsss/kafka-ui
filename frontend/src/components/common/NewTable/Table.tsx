@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import type {
   ColumnDef,
   ColumnFiltersState,
@@ -6,6 +6,7 @@ import type {
   PaginationState,
   Row,
   SortingState,
+  VisibilityState,
 } from '@tanstack/react-table';
 import {
   flexRender,
@@ -61,6 +62,9 @@ export interface TableProps<TData> {
   filterPersister?: Persister;
   resetPaginationOnFilter?: boolean;
 
+  // Columns visibility
+  columnVisibility?: VisibilityState;
+
   // Placeholder for empty table
   emptyMessage?: React.ReactNode;
 
@@ -73,6 +77,8 @@ export interface TableProps<TData> {
   onMouseLeave?: () => void;
 
   setRowId?: (originalRow: TData) => string;
+
+  onFilterRows?: (rows: TData[]) => void;
 }
 
 type UpdaterFn<T> = (previousState: T) => T;
@@ -158,6 +164,8 @@ function Table<TData>({
   setRowId,
   filterPersister,
   resetPaginationOnFilter = true,
+  columnVisibility,
+  onFilterRows,
 }: TableProps<TData>) {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
@@ -209,6 +217,7 @@ function Table<TData>({
       columnFilters: filterPersister?.getPrevState() ?? [],
       rowSelection,
       columnSizing: columnSizingPersister?.columnSizing ?? {},
+      columnVisibility,
     },
     getRowId: (originalRow, index) => {
       if (setRowId) {
@@ -266,6 +275,14 @@ function Table<TData>({
     }
     return colSizes;
   }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
+
+  useEffect(() => {
+    if (onFilterRows) {
+      const filteredRows = table.getFilteredRowModel().rows;
+      const filteredData = filteredRows.map((row) => row.original);
+      onFilterRows(filteredData);
+    }
+  }, [table.getState().columnFilters]);
 
   const handleRowClick = (row: Row<TData>) => (e: React.MouseEvent) => {
     // If row selection is enabled do not handle row click.
