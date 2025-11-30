@@ -12,10 +12,13 @@ import PageLoader from 'components/common/PageLoader/PageLoader';
 import TopicTable from 'components/Topics/List/TopicTable';
 import { Action, ResourceType } from 'generated-sources';
 import ResourcePageHeading from 'components/common/ResourcePageHeading/ResourcePageHeading';
+import useAppParams from 'lib/hooks/useAppParams';
+import { ClusterName } from 'lib/interfaces/cluster';
 
 const ListPage: React.FC = () => {
   const { isReadOnly } = React.useContext(ClusterContext);
   const [searchParams, setSearchParams] = useSearchParams();
+  const { clusterName } = useAppParams<{ clusterName: ClusterName }>();
 
   // Set the search params to the url based on the localStorage value
   React.useEffect(() => {
@@ -30,6 +33,8 @@ const ListPage: React.FC = () => {
     }
     setSearchParams(searchParams);
   }, []);
+
+  // no-op: we no longer show last visited label; we rely on recent suggestions
 
   const handleSwitch = () => {
     if (searchParams.has('hideInternal')) {
@@ -62,7 +67,11 @@ const ListPage: React.FC = () => {
         )}
       </ResourcePageHeading>
       <ControlPanelWrapper hasInput>
-        <Search placeholder="Search by Topic Name" />
+        <Search
+          placeholder="Search by Topic Name"
+          storageKey={`recentTopicSearches:${clusterName}`}
+          persistOnType={false}
+        />
         <label>
           <Switch
             name="ShowInternalTopics"
