@@ -30,3 +30,7 @@ export const IconButtonWrapper = styled.span.attrs(() => ({
     cursor: pointer;
   }
 `;
+
+export const Container = styled.div`
+  position: relative;
+`;

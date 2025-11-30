@@ -21,7 +21,9 @@ export const TopicTitleCell: React.FC<CellContext<Topic, unknown>> = ({
       const prev = raw ? (JSON.parse(raw) as string[]) : [];
       const next = [name, ...prev.filter((s) => s !== name)].slice(0, 5);
       localStorage.setItem(key, JSON.stringify(next));
-    } catch {}
+    } catch (e) {
+      // do nothing
+    }
   }, [clusterName, name]);
   return (
     <NavLink

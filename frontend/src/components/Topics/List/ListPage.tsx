@@ -12,10 +12,17 @@ import PageLoader from 'components/common/PageLoader/PageLoader';
 import TopicTable from 'components/Topics/List/TopicTable';
 import { Action, ResourceType } from 'generated-sources';
 import ResourcePageHeading from 'components/common/ResourcePageHeading/ResourcePageHeading';
+import Fts from 'components/common/Fts/Fts';
+import useFts from 'components/common/Fts/useFts';
+import useAppParams from 'lib/hooks/useAppParams';
+import { ClusterName } from 'lib/interfaces/cluster';
 
 const ListPage: React.FC = () => {
   const { isReadOnly } = React.useContext(ClusterContext);
   const [searchParams, setSearchParams] = useSearchParams();
+  const { clusterName } = useAppParams<{ clusterName: ClusterName }>();
+
+  useFts('topics');
 
   // Set the search params to the url based on the localStorage value
   React.useEffect(() => {
@@ -62,7 +69,12 @@ const ListPage: React.FC = () => {
         )}
       </ResourcePageHeading>
       <ControlPanelWrapper hasInput>
-        <Search placeholder="Search by Topic Name" />
+        <Search
+          placeholder="Search by Topic Name"
+          extraActions={<Fts resourceName="topics" />}
+          storageKey={`recentTopicSearches:${clusterName}`}
+          persistOnType={false}
+        />
         <label>
           <Switch
             name="ShowInternalTopics"

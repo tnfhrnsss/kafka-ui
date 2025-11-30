@@ -23,6 +23,8 @@ describe('Search', () => {
       new URLSearchParams(),
       setSearchParamsMock,
     ]);
+    setSearchParamsMock.mockClear();
+    localStorage.clear();
   });
   it('calls handleSearch on input', async () => {
     render(<Search placeholder={placeholder} />);
@@ -71,5 +73,34 @@ describe('Search', () => {
 
     clearButton = screen.queryByTestId('search-clear-button');
     expect(clearButton).not.toBeInTheDocument();
+  });
+
+  it('shows recent searches dropdown when storageKey is provided', async () => {
+    const storageKey = 'test-recent-searches';
+    const recentSearches = ['search1', 'search2'];
+    localStorage.setItem(storageKey, JSON.stringify(recentSearches));
+
+    render(<Search placeholder={placeholder} storageKey={storageKey} />);
+    const input = screen.getByPlaceholderText(placeholder);
+    await userEvent.click(input);
+
+    expect(screen.getByText('Recent')).toBeInTheDocument();
+    expect(screen.getByText('search1')).toBeInTheDocument();
+    expect(screen.getByText('search2')).toBeInTheDocument();
+  });
+
+  it('applies search when recent search item is clicked', async () => {
+    const storageKey = 'test-recent-searches';
+    const recentSearches = ['my-search'];
+    localStorage.setItem(storageKey, JSON.stringify(recentSearches));
+
+    render(<Search placeholder={placeholder} storageKey={storageKey} />);
+    const input = screen.getByPlaceholderText(placeholder);
+    await userEvent.click(input);
+
+    const searchItem = screen.getByText('my-search');
+    await userEvent.click(searchItem);
+
+    expect(setSearchParamsMock).toHaveBeenCalled();
   });
 });
